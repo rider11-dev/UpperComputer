@@ -30,7 +30,7 @@ namespace Modbus.Basics
             bytes.Add(slaveId);//从站地址
             bytes.Add((byte)readType);//功能码
 
-            //起始地址
+            //起始地址,读取数量
             var start = BitConverter.GetBytes(startAddr);
             var count = BitConverter.GetBytes(length);
             //小端存储时,第一个byte是低位字节
@@ -46,15 +46,150 @@ namespace Modbus.Basics
             var crcBytes = CheckSum.CRC16(bytes.ToArray());
             bytes.AddRange(crcBytes);
 
-            Console.WriteLine($"=====================slaveId:{slaveId},readType:{readType}==========================");
-            Console.WriteLine("发送的报文:");
-            for (int i = 0; i < bytes.Count; i++)
-            {
-                Console.Write(bytes[i].ToString("X2") + " ");
-            }
+            PrintBytes(bytes);
             return bytes.ToArray();
         }
 
+        /// <summary>
+        /// 构建写单个线圈的报文
+        /// </summary>
+        /// <param name="slaveId"></param>
+        /// <param name="startAddr"></param>
+        /// <param name="value"></param>
+        /// <returns></returns>
+        public static byte[] BuildWriteMessage(byte slaveId, ushort startAddr, bool value)
+        {
+            Console.WriteLine($"========写单个线圈:{slaveId},{(value ? "置位" : "复位")}========");
+            var valueBytes = new byte[2];
+            valueBytes[0] = (byte)(value ? 0xFF : 0x00);
+            valueBytes[1] = 0x00;
+            var bytes = BuildWriteMessage(slaveId, WriteType.Write05, startAddr, valueBytes);
+            return bytes;
+        }
+
+        /// <summary>
+        /// 构建写单个寄存器的报文
+        /// </summary>
+        /// <param name="slaveId"></param>
+        /// <param name="startAddr"></param>
+        /// <param name="value"></param>
+        /// <returns></returns>
+        public static byte[] BuildWriteMessage(byte slaveId, ushort startAddr, short value)
+        {
+            Console.WriteLine($"========写单个寄存器:{slaveId},{value}========");
+            var valueBytes = BitConverter.GetBytes(value);
+            if (BitConverter.IsLittleEndian)
+            {
+                Array.Reverse(valueBytes);
+            }
+            var bytes = BuildWriteMessage(slaveId, WriteType.Write06, startAddr, valueBytes);
+            return bytes;
+        }
+
+        /// <summary>
+        /// 构建写多个线圈的报文
+        /// </summary>
+        /// <param name="slaveId"></param>
+        /// <param name="startAddr"></param>
+        /// <param name="values"></param>
+        /// <returns></returns>
+        public static byte[] BuildWriteMessage(byte slaveId, ushort startAddr, IEnumerable<bool> values)
+        {
+            Console.WriteLine($"========写多个线圈:{slaveId}=>{string.Join(",", values)}========");
+            var count = values.Count();
+            //写入值
+            var valueBytes = new List<byte>();
+            //由于1个字节有8位，所以如果需要写入的值超过了8个，需要生成一个新的字节用以存储
+            for (int i = 0; i < count; i += 8)
+            {
+                var temp = values.Skip(i).Take(8);
+                var tempByte = GetBitArray(temp);
+                valueBytes.Add(tempByte);
+            }
+            return BuildWriteMessage(slaveId, WriteType.Write0F, startAddr, valueBytes.ToArray(), count);
+        }
+
+        /// <summary>
+        /// 构建写多个寄存器的报文
+        /// </summary>
+        /// <param name="slaveId"></param>
+        /// <param name="startAddr"></param>
+        /// <param name="values"></param>
+        /// <returns></returns>
+        public static byte[] BuildWriteMessage(byte slaveId, ushort startAddr, IEnumerable<short> values)
+        {
+            Console.WriteLine($"========写多个寄存器:{slaveId}=>{string.Join(",", values)}========");
+
+            var count = values.Count();
+            //写入数据
+            var valueBytes = new List<byte>();
+            foreach (var val in values)
+            {
+                var vBytes = BitConverter.GetBytes(val);
+                if (BitConverter.IsLittleEndian)
+                {
+                    Array.Reverse(vBytes);
+                }
+                valueBytes.AddRange(vBytes);
+            }
+            return BuildWriteMessage(slaveId, WriteType.Write10, startAddr, valueBytes.ToArray(), count);
+        }
+
+        /// <summary>
+        /// 构建写报文
+        /// </summary>
+        /// <param name="slaveId"></param>
+        /// <param name="writeType"></param>
+        /// <param name="startAddr"></param>
+        /// <param name="valueBytes"></param>
+        /// <param name="count">写入数量，写多个时要提供，写单个线圈、寄存器时不需要</param>
+        /// <returns></returns>
+        public static byte[] BuildWriteMessage(byte slaveId, WriteType writeType, ushort startAddr, byte[] valueBytes, int? count = null)
+        {
+            /*
+             * 报文格式：写单个
+             *          站地址 功能码 开始地址_高位 开始地址_低位 写入值_高位  写入值_低位  CRC16校验位
+             * 字节数      1     1        1            1          1            1          2
+             * 
+             * 报文格式：写多个
+             *          站地址 功能码 起始地址_高位 起始地址_低位 写入数量_高位  写入数量_低位 字节数   写入值  CRC16校验位
+             * 字节数      1     1        1            1          1            1         1      N          2
+             */
+            var bytes = new List<byte>();
+            bytes.Add(slaveId);//从站地址
+            bytes.Add((byte)writeType);//功能码
+
+            var startBytes = BitConverter.GetBytes(startAddr);
+            if (BitConverter.IsLittleEndian)
+            {
+                Array.Reverse(startBytes);
+            }
+            bytes.AddRange(startBytes);//开始地址
+            if (count != null)
+            {
+                var countBytes = BitConverter.GetBytes(Convert.ToInt16(count));
+                if (BitConverter.IsLittleEndian)
+                {
+                    Array.Reverse(countBytes);
+                }
+                bytes.AddRange(countBytes);//写入数量
+                bytes.Add((byte)valueBytes.Length);//写入的字节数
+            }
+            bytes.AddRange(valueBytes);//写入的值
+
+            var crc16 = CheckSum.CRC16(bytes.ToArray());
+            bytes.AddRange(crc16);
+
+            PrintBytes(bytes);
+
+            return bytes.ToArray();
+        }
+
+        /// <summary>
+        /// 解析响应数据
+        /// </summary>
+        /// <param name="receiveBytes"></param>
+        /// <param name="float"></param>
         public static void ParseResult(byte[] receiveBytes, bool @float = false)
         {
             Console.WriteLine("接收到的消息:");
@@ -156,5 +291,45 @@ namespace Modbus.Basics
             Console.WriteLine();
         }
         #endregion
+
+        /// <summary>
+        /// 打印字节
+        /// </summary>
+        /// <param name="bytes"></param>
+        public static void PrintBytes(IEnumerable<byte> bytes)
+        {
+            foreach (var b in bytes)
+            {
+                Console.Write(b.ToString("X2") + " ");
+            }
+            Console.WriteLine();
+        }
+
+        /// <summary>
+        /// 并生成字节
+        /// </summary>
+        /// <param name="data">位数据</param>
+        /// <returns></returns>
+        public static byte GetBitArray(IEnumerable<bool> data)
+        {
+            //位数据集合反转
+            //data.Reverse();//TODO:需要反转吗
+            //data = data.Reverse();
+
+            //定义初始字节：0000 0000
+            byte temp = 0x00;
+            int index = 0;
+            foreach (var item in data)
+            {
+                //判断每一位数据，为true则左移一个1到对应的位置
+                if (item)
+                {
+                    temp = (byte)(temp | (0x01 << index));
+                }
+                index++;
+            }
+
+            return temp;
+        }
     }
 }
