@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Modbus.Basics
+namespace Modbus.Protocal
 {
     /*
  * 功能码	作用
