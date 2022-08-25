@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
@@ -8,7 +8,11 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Modbus.Protocal\Modbus.Protocal.csproj" />
+    <PackageReference Include="NModbus.Serial" Version="3.0.72" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Modbus.Protocol\Modbus.Protocol.csproj" />
   </ItemGroup>
 
 </Project>

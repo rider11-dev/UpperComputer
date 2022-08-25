@@ -1,4 +1,4 @@
-﻿namespace Modbus.Protocal
+﻿namespace Modbus.Protocol
 {
     /*
      * 功能码	作用

@@ -1,4 +1,4 @@
-﻿using Modbus.Protocal;
+﻿using Modbus.Protocol;
 using System;
 using System.Collections.Generic;
 using System.Linq;

@@ -1,4 +1,4 @@
-﻿using Modbus.Protocal;
+﻿using Modbus.Protocol;
 using System.Collections;
 using System.Text;
 
@@ -9,7 +9,15 @@ namespace Modbus.Test
         static void Main(string[] args)
         {
             Console.WriteLine("Hello, Modbus!");
-            //ModbusProtocal_Test.Test();
+            try
+            {
+                //ModbusProtocal_Test.Test();
+                NModbus_Test.Test();
+            }
+            catch(Exception ex)
+            {
+                Console.WriteLine(ex.ToString());
+            }
             Console.ReadLine();
         }
 

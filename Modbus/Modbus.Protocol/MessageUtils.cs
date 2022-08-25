@@ -5,7 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Modbus.Protocal
+namespace Modbus.Protocol
 {
     public class MessageUtils
     {
@@ -298,11 +298,7 @@ namespace Modbus.Protocal
         /// <param name="bytes"></param>
         public static void PrintBytes(IEnumerable<byte> bytes)
         {
-            foreach (var b in bytes)
-            {
-                Console.Write(b.ToString("X2") + " ");
-            }
-            Console.WriteLine();
+            Console.WriteLine(Utils.BytesToHexString(bytes));
         }
 
         /// <summary>
